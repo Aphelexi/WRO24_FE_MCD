@@ -16,15 +16,15 @@
 ## Respository Contents
   Contents of the full repository
 
- [Schemes]| This folder contains the schematic for the vehicle 
+ [Schemes] | This folder contains the schematic for the vehicle 
 
  [SRC] | Programming and software is housed here 
 
  [T-Photos] | Misc. photos can be seen here 
 
- [V-Photos]| Photos of the vehicle from all required sides can be seen here 
+ [V-Photos] | Photos of the vehicle from all required sides can be seen here 
 
- [Video]| Youtube link is here for you to watch our average working day 
+ [Video] | Youtube link is here for you to watch our average working day 
 
  [Other] | Other materials or documentation regarding our vehicle 
 
@@ -33,7 +33,7 @@
   The vehicle is a modded (I forgot the name). We removed the cover, front and back bumper, extra lights, and the suspension mechanism from the base car, and we used metal cut parts to replace and to serve as a base and help mount the electronics. The original ESC and motor have been replaced with a different ESC and motor we bought from (I forgor).
   The robot works using its brain; the Raspberry pi and the extension board. The Raspberry Pi has control over the DC and servo motor which control the movement and steering using pulse-width-modulation (PWM). The raspberry pi has control over our camera and turns based off the detection system we have coded, these signals help steer the vehicle in the right direction.
 ## Software Design
-  As the main brain of our vehicle, the Raspberry Pi runs on python and works by using its camera to dictate how the vehicle should move. (this entire section is just infinite yapping jutsu which i will do later)
+  As the main brain of our vehicle, the Raspberry Pi runs on python and works by using its camera to dictate how the vehicle should move. This is done through filtering and checking each frame for the amount of walls on one side or the other of the robot. Despite the premise being the same, this method is changed depending on which challenge the robot is running. After finding how the robot should turn/move, we use PID to calculate the most efficient path to take. (yap about how pid works). Afterwards, the robot checks for lines to turn. In specific, we check for the orange line; because it is the brightest, most flambuouyant color. If we see the orange line within a specific box, we count a "turn". (yaddda yadda count turns 4=1 lap blah blh blah)
 ## ✧ Open Challenge Strategy ✧
   During the Open Challenge, we take every frame recorded from the camera and filter for the black walls. Next, we draw boxes on specific locations in the frame. These boxes are used to determine if the robot is on a slant, done by measuring the pixels of "wall" inside the box. after this segment runs, we use PID Encoder to adjust the robot's orientation.
 
@@ -53,7 +53,9 @@
 
   ^Hooray, robot is nice and straight!
 ##  Obstacle Challenge strategy 
-    im not gonn lie i dont think were finishing this
+    im not gonn lie i dont think were finishing this but here we go
+
+    
 
 ##  Parts List 
 update this from the google classroom
