@@ -33,16 +33,32 @@ Documentation
 ##  Robot Design 
   The vehicle is a modded (I forgot the name). We removed the cover, front and back bumper, extra lights, and the suspension mechanism from the base car, and we used metal cut parts to replace and to serve as a base and help mount the electronics. The original ESC and motor have been replaced with a different ESC and motor we bought from (I forgor).
   The robot works using its brain; the Raspberry pi and the extension board. The Raspberry Pi has control over the DC and servo motor which control the movement and steering using pulse-width-modulation (PWM). The raspberry pi has control over our camera and turns based off the detection system we have coded, these signals help steer the vehicle in the right direction.
-## ✧ Software Design ✧
-  Because our vehicle functions with both a Raspberry Pi and Arduino board, our code runs on two seperate languages. With the Arduino IDE software we coded our arduino board in c++ to take commands from the Raspberry Pi, these commands will dictate the Servo and Dc motor's movement and thus the vehichle's movement. As the main brain of our vehicle, the Raspberry Pi runs on python and works by using its camera to dictate how the vehicle should move.
-## ✧ Design choies ✧
-  Using the base of the traxxas, our first plan consisted of a fully 3d printed design using it as a chasis. 3D printing was hard to come by so we ended up mixing a bunch of materials together. We still use a 2d pirnted base but instead we have adhesives and glues to stick it and our lego parts together.
+## Software Design
+  As the main brain of our vehicle, the Raspberry Pi runs on python and works by using its camera to dictate how the vehicle should move. (this entire section is just infinite yapping jutsu which i will do later)
 ## ✧ Open Challenge Strategy ✧
-  For the Open Challenge, we decided to take frames recorded from our camera and filter out so the black walls were highlighted. We then use regions of interest to help wall-follow and to help determine when to turn. With a PD following system we can fine tune the driving and turning so that our vehicle wll procede smoothly.
+  During the Open Challenge, we take every frame recorded from the camera and filter for the black walls. Next, we draw boxes on specific locations in the frame. These boxes are used to determine if the robot is on a slant, done by measuring the pixels of "wall" inside the box. after this segment runs, we use PID Encoder to adjust the robot's orientation.
+
+  Here is an example:
+
+  (Photo 1)
+
+  ^The robot sees that there is more wall in the left box than the right
+
+
+  (Photo 2)
+
+  ^The robot begins to turn to compensate
+
+
+  (Photo 3)
+
+  ^Hooray, robot is nice and straight!
 ## ✧ Obstacle Challenge strategy ✧
-    NA?
+    im not gonn lie i dont think were finishing this
 
 ## ✧ Parts List ✧
+update this from the google classroom
+
 + TRA97074-1 Traxxas TRX-4M Ford Bronco 1/18 RTR 4X4 Trail Truck, White | [Link](https://www.bigboyswithcooltoys.ca/products/tra97074-1-traxxas-trx-4m-ford-bronco-1-18-rtr-4x4-trail-truck-white)
 + Lego Mindstorm Ev3 Core Set | [Link](https://www.amazon.com/Lego-Mindstorm-Ev3-Core-45544/dp/B00DEA55Z8)
 + Super Start Kit UNO R3 Project | [Link](https://www.amazon.ca/Elegoo-Project-Starter-Tutorial-Arduino/dp/B01D8KOZF4)
