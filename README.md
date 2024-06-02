@@ -52,11 +52,11 @@
   (Photo 3)
 
   ^Hooray, robot is nice and straight!
-##  Obstacle Challenge strategy 
-    im not gonn lie i dont think were finishing this but here we go
+##  Obstacle Challenge strategy
 
+  Ryoiki Tenkai. Infinite Yap
+  Our obstacle challenge has a lot of overlap
     
-
 ##  Parts List 
 update this from the google classroom
 
