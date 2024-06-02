@@ -55,7 +55,7 @@
 ##  Obstacle Challenge strategy
 
   Ryoiki Tenkai. Infinite Yap
-  Our obstacle challenge has a lot of overlap
+  Our obstacle challenge has a lot of overlap with the open challenge. There are only a few additions and differences. Firstly, there is an extra stage to the color filtering. This is to also accomodate for the pillars we will be running into. One for the red, and another for the green pillar.
     
 ##  Parts List 
 update this from the google classroom
