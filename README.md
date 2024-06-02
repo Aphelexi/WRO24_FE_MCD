@@ -1,4 +1,4 @@
-x# ꕤ✿✧ *Engineering Documentation* ✧✿ꕤ
+✾ *Engineering Documentation* ✾
 
 ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 Documentation
@@ -17,17 +17,17 @@ Documentation
 ## Respository Contents
   Contents of the full repository
 
- [Schemes](https://github.com/kylln20/WRO-2022-23/tree/main/schemes) | This folder contains the schematic for the vehicle 
+ [Schemes]| This folder contains the schematic for the vehicle 
 
- [SRC](https://github.com/kylln20/WRO-2022-23/tree/main/src) | Programming and software is housed here 
+ [SRC] | Programming and software is housed here 
 
- [T-Photos](https://github.com/kylln20/WRO-2022-23/tree/main/t-photos) | Team member photos can be seen here 
+ [T-Photos] | Misc. photos can be seen here 
 
- [V-Photos](https://github.com/kylln20/WRO-2022-23/tree/main/v-photos) | Photos of the vehicle from all required sides can be seen here 
+ [V-Photos]| Photos of the vehicle from all required sides can be seen here 
 
- [Video](https://github.com/kylln20/WRO-2022-23/tree/main/video) | Youtube link is here for you to watch our average working day 
+ [Video]| Youtube link is here for you to watch our average working day 
 
- [Other](https://github.com/kylln20/WRO-2022-23/tree/main/other) | Other materials or documentation regarding our vehicle 
+ [Other] | Other materials or documentation regarding our vehicle 
 
 ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 ##  Robot Design 
@@ -53,10 +53,10 @@ Documentation
   (Photo 3)
 
   ^Hooray, robot is nice and straight!
-## ✧ Obstacle Challenge strategy ✧
+##  Obstacle Challenge strategy 
     im not gonn lie i dont think were finishing this
 
-## ✧ Parts List ✧
+##  Parts List 
 update this from the google classroom
 
 + TRA97074-1 Traxxas TRX-4M Ford Bronco 1/18 RTR 4X4 Trail Truck, White | [Link](https://www.bigboyswithcooltoys.ca/products/tra97074-1-traxxas-trx-4m-ford-bronco-1-18-rtr-4x4-trail-truck-white)
