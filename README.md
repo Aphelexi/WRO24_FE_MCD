@@ -29,14 +29,18 @@
  [Other] | Other materials or documentation regarding our vehicle 
 
 ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-##  Robot Design 
-  The vehicle is a modded (I forgot the name). We removed the cover, front and back bumper, extra lights, and the suspension mechanism from the base car, and we used metal cut parts to replace and to serve as a base and help mount the electronics. The original ESC and motor have been replaced with a different ESC and motor we bought from (I forgor).
-  The robot works using its brain; the Raspberry pi and the extension board. The Raspberry Pi has control over the DC and servo motor which control the movement and steering using pulse-width-modulation (PWM). The raspberry pi has control over our camera and turns based off the detection system we have coded, these signals help steer the vehicle in the right direction.
-## Software Design
-  As the main brain of our vehicle, the Raspberry Pi runs on python and works by using its camera to dictate how the vehicle should move. This is done through filtering and checking each frame for the amount of walls on one side or the other of the robot. Despite the premise being the same, this method is changed depending on which challenge the robot is running. After finding how the robot should turn/move, we use PID to calculate the most efficient path to take. (yap about how pid works). Afterwards, the robot checks for lines to turn. In specific, we check for the orange line; because it is the brightest, most flambuouyant color. If we see the orange line within a specific box, we count a "turn". (yaddda yadda count turns 4=1 lap blah blh blah)
-## ✧ Open Challenge Strategy ✧
-  During the Open Challenge, we take every frame recorded from the camera and filter for the black walls. Next, we draw boxes on specific locations in the frame. These boxes are used to determine if the robot is on a slant, done by measuring the pixels of "wall" inside the box. after this segment runs, we use PID Encoder to adjust the robot's orientation.
 
+## Robot Design
+The vehicle is a modified [model name omitted]. We removed the cover, front and rear bumpers, additional lights, and the suspension system from the original chassis. Metal cut parts were then used to create a new base, which also facilitated the mounting of electronics. The original ESC and motor were replaced with new components sourced from [supplier name omitted].
+
+The robot is primarily controlled by a Raspberry Pi and an extension board. The Raspberry Pi manages both the DC and servo motors, which govern movement and steering through pulse-width modulation (PWM). Additionally, it interfaces with the camera and processes image data to guide the vehicle based on a coded detection system, ensuring the robot navigates accurately.
+
+## Software Design
+The Raspberry Pi, functioning as the core control unit, operates using Python. It leverages the camera to determine vehicle movement by analyzing each frame for wall positions relative to the robot. This process is adapted based on the specific challenge the robot is addressing. Once movement decisions are made, a PID controller calculates the most efficient trajectory. The PID controller helps to minimize errors by adjusting the steering angle according to proportional, integral, and derivative terms. The robot also identifies turning points by detecting an orange line, which is selected for its visibility. When the orange line is detected within a predefined region, it registers a "turn." The system tracks these turns, where a count of four turns equates to one lap, and continues this process to complete the required course.
+## ✧ Open Challenge Strategy ✧
+This script is designed to use computer vision to allow the robot to adjust its orientation. The program begins by setting up the camera and motor configurations, and initializing the camera to capture images and centering the wheels. Afterwards, the script creates a function to draw regions of interest (ROIs) based on the captured images and another function to command the servo and DC motors. The primary loop processes camera frames to detect contours and regions with specific colors, adjusting the robot's steering angle using a PID controller to maintain a path based on detected areas.
+
+In its operation, the robot captures images and processes them to detect black and orange areas, which are used to guide its movement. By analyzing the size of detected contours within predefined ROIs, the robot adjusts its steering angle and direction to navigate the environment. The ultimate goal is to complete a series of turns while avoiding obstacles and maintaining the correct trajectory. The script includes a debugging mode to visualize the robot's view and ROIs, and it stops the robot after completing a set number of turns or when a manual stop command is issued.
   Here is an example:
 
   (Photo 1)
@@ -54,11 +58,10 @@
   ^Hooray, robot is nice and straight!
 ##  Obstacle Challenge strategy
 
-  Ryoiki Tenkai. Infinite Yap
-  Our obstacle challenge has a lot of overlap with the open challenge. There are only a few additions and differences. Firstly, there is an extra stage to the color filtering. This is to also accomodate for the pillars we will be running into. One for the red, and another for the green pillar.
+Our obstacle challenge shares significant similarities with the open challenge, with only a few key differences. The primary distinction is the additional stage in the color filtering process, designed to address the presence of obstacles such as pillars on the course. Specifically, the system is now configured to recognize and differentiate between red and green pillars, which requires an enhanced color filtering algorithm. This adaptation ensures that the robot can accurately detect and navigate around these new obstacles, thereby improving its ability to complete the course effectively. The integration of these additional color filters enhances the robot's situational awareness and obstacle avoidance capabilities, which are crucial for navigating the more complex environment of the obstacle challenge.
     
 ##  Parts List 
-update this from the google classroom
+update this from the google classroom or else we are cooked!!
 
 + TRA97074-1 Traxxas TRX-4M Ford Bronco 1/18 RTR 4X4 Trail Truck, White | [Link](https://www.bigboyswithcooltoys.ca/products/tra97074-1-traxxas-trx-4m-ford-bronco-1-18-rtr-4x4-trail-truck-white)
 + Lego Mindstorm Ev3 Core Set | [Link](https://www.amazon.com/Lego-Mindstorm-Ev3-Core-45544/dp/B00DEA55Z8)
