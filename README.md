@@ -63,7 +63,7 @@ In its operation, the robot captures images and processes them to detect black a
 Our obstacle challenge shares significant similarities with the open challenge, with only a few key differences. The primary distinction is the additional stage in the color filtering process, designed to address the presence of obstacles such as pillars on the course. Specifically, the system is now configured to recognize and differentiate between red and green pillars, which requires an enhanced color filtering algorithm. This adaptation ensures that the robot can accurately detect and navigate around these new obstacles, thereby improving its ability to complete the course effectively. The integration of these additional color filters enhances the robot's situational awareness and obstacle avoidance capabilities, which are crucial for navigating the more complex environment of the obstacle challenge.
     
 ##  Parts List 
-update this from the google classroom or else we are cooked!!
+this is so horribly outdated because its literally from last year but honestly theres not enough time
 
 + TRA97074-1 Traxxas TRX-4M Ford Bronco 1/18 RTR 4X4 Trail Truck, White | [Link](https://www.bigboyswithcooltoys.ca/products/tra97074-1-traxxas-trx-4m-ford-bronco-1-18-rtr-4x4-trail-truck-white)
 + Lego Mindstorm Ev3 Core Set | [Link](https://www.amazon.com/Lego-Mindstorm-Ev3-Core-45544/dp/B00DEA55Z8)
