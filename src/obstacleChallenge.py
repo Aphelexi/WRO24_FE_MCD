@@ -1,390 +1,526 @@
 import cv2
-import time
+import sys
+sys.path.append('/home/pi/TurboPi/')
 from picamera2 import Picamera2
-import numpy as np
+import libcamera
+import time
 import RPi.GPIO as GPIO
-import serial
-from readchar import readkey, key
-from time import sleep
+import numpy as np
+import HiwonderSDK.Board as Board
+import math
 
-ser = serial.Serial('/dev/ttyACM0', 115200, timeout = 1) #approximately 115200 characters per second
-ser.flush() #block the program until all the outgoing data has been sent
+#set speed
+def write(value):
 
+    if 180 > value > 0:
+        pulseWidth = int(11.1*value+500)
+        Board.setPWMServoPulse(1, pulseWidth, 1)
 
-#set up pisugar button
-GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(5, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-#checks if button was pressed
+    elif 2000 > value > 1000:
+        Board.setPWMServoPulse(5, value, 100)
 
-while True:
-    if GPIO.input(5) == GPIO.LOW:
-        break
-        
-#1270
-speed = 1500
-angle = 2060
-#ser.write((str(speed) + "\n").encode('utf-8'))
-#print("speed: ", speed)
-ser.write((str(angle) + "\n").encode('utf-8'))
-print("angle: ", angle)
-            
-#roi coordinates
-points = [(180, 160), (0, 320), (799, 320), (620, 160)]
-
-#set up pi camera
-picam2 = Picamera2()
-picam2.preview_configuration.main.size = (800,600)
-picam2.preview_configuration.main.format = "RGB888"
-picam2.preview_configuration.controls.FrameRate = 80
-picam2.preview_configuration.align()
-picam2.configure("preview")
-picam2.start()
+#read the name roi=region of intrest
+def display_roi(color):
+    for ROI in ROIs: 
+        image = cv2.line(img, (ROI[0], ROI[1]), (ROI[2], ROI[1]), color, 4)
+        image = cv2.line(img, (ROI[0], ROI[1]), (ROI[0], ROI[3]), color, 4)
+        image = cv2.line(img, (ROI[2], ROI[3]), (ROI[2], ROI[1]), color, 4)
+        image = cv2.line(img, (ROI[2], ROI[3]), (ROI[0], ROI[3]), color, 4)
 
 
-proportional=0
-error=0
-prevError=0
-target=0
-diff=0
-kd=0.001
-kp=-0.0012
 
-kdo = 0
-kpo = 0.09
-closeToWall = False
+#read name
+def stop_car():
 
-turning = False
-prevTurn = "none"
+    write(87)
+    write(1500)
 
-prevFrameTime = 0
-newFrameTime = 0
-fpsCount = 0
+    cv2.destroyAllWindows()
 
-prevBlue = False
-currBlue = False
-blueCount = 0
+#find contour in roi
+def contours(hsvRange, ROI): 
+    lower_mask = np.array(hsvRange[0])
+    upper_mask = np.array(hsvRange[1])
 
-obstacle = "none"
-prevObstacle = "none"
-turnObstacle = " "
+    mask = cv2.inRange(img_hsv, lower_mask, upper_mask)
 
-xr,yr, wr, hr = 0, 0, 0, 0
-xg, yg, wg, hg = 0, 0, 0, 0
+    kernel = np.ones((7, 7), np.uint8)
 
-while True:
-    im= picam2.capture_array()
+    eMask = cv2.erode(mask, kernel, iterations=1)
+    dMask = cv2.dilate(eMask, kernel, iterations=1)
 
-    # time when we finish processing for this frame
-    new_frame_time = time.time()
+    contours = cv2.findContours(dMask[ROI[1]:ROI[3], ROI[0]:ROI[2]], cv2.RETR_EXTERNAL,
+    cv2.CHAIN_APPROX_SIMPLE)[-2]
+
+    return contours
+
+#finds biggest contour
+def max_contour(contours): 
+    maxArea = 0
+
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+
+        maxArea = max(area, maxArea)
+
+    return maxArea
+
+#write to multiple threads
+def multi_write(sequence):
+
+    for action in sequence: 
+
+        #delay commands
+        if action < sharpRight: 
+            time.sleep(action)
+        else: 
+            write(action)
+
+if __name__ == '__main__':
+
+    time.sleep(3)
+
+    #initialize camera
+    picam2 = Picamera2()
+
+    picam2.set_controls({"AeEnable": True})
+    picam2.preview_configuration.main.size = (640,480)
+    picam2.preview_configuration.main.format = "RGB888"
+    picam2.preview_configuration.controls.FrameRate = 30
+    picam2.preview_configuration.align()
+    picam2.configure("preview")
+
+    picam2.start()
+
+    #turn by wall or pillar
+    eTurnMethod = ""
+
+    #read the name
+    lapsComplete = False
+
+    #target color for pillar
+    redTarget = 110 
+    greenTarget = 530
+
+    #what was te last pillar the car passed
+    lastTarget = 0
+
+    #did we go the wrong way?
+    reverse = False
+
+    #so basically the code doesnt work so this is a bandaid fix
+    tempR = False
+
+    #did we turn?
+    turnDir = "none" 
+
+    #park right or left
+    parkingR = False
+    parkingL = False
+
+    #stores a stop time 
+    sTime = 0
+
+    #how long do we stop time
+    s = 0
+
+    #park when no pillars (bandaid for niche case)
+    tempParking = False
+
+    #offset to where we stop
+    endConst = 30
+
+    #distance from pillar to the car
+    pDist = 0
+
+    #stores whether a pillar or no pillar was seen, true for if a pillar was seen, false for if no pillar was seen, blah, blah, blah
+    tList = []
+
+    #if car go back, no count as turn
+    ignore = False
+    prevIgnore = False
+
+    #regions of interest
+    ROI1 = [0, 165, 330, 255]
+    ROI2 = [330, 165, 640, 255]
+    ROI3 = [redTarget - 40, 110, greenTarget + 40, 335]
+    ROI4 = [200, 250, 440, 300]
+
+    ROIs = [ROI1, ROI2, ROI3, ROI4]
+
+    #colors
+    rBlack = [[0, 0, 0], [180, 255, 50]]
+    rBlue = [[100, 100, 100], [135, 255, 255]]
+    rRed = [[171, 175, 50], [180, 255, 255]]
+    rGreen = [[58, 62, 55], [96, 255, 255]]
+    rMagenta = [[160, 140, 50], [170, 255, 255]]
+    rOrange = [[0, 100, 175], [25, 255, 255]]
+    rWhite = [[0, 0, 150], [180, 28, 255]]
+
+    #read the name
+    lTurn = False
+    rTurn = False
+
+    #init kp and kd, for cases and stuff
+    kp = 0.02
+    kd = 0.01
+    cKp = 0.2
+    cKd = 0.2
+    cy = 0.15
+
+    straightConst = 87 #angle in which car goes straight
+    exitThresh = 4000 #tells when the car is supposed to stop turning
+
+    angle = 87 #current angle (default straight because sigma dennis)
+    prevAngle = angle #for pid control
+    tDeviation = 50 #max turning angle change
+    sharpRight = straightConst - tDeviation
+    sharpLeft = straightConst + tDeviation
+
+    speed = 1650 #car speed
+    reverseSpeed = 1340 #car speed, but backwards
+    aDiff = 0 #dif of areas between contours
+    prevDiff = 0 #pid numbers
+
+    error = 0 #diff between pillar and target
+    prevError = 0 #stores previous error
+
+    cTarget = 0 #where the pillar should be
+    contX = 0 #where the pillar is x axis
+    contY = 0 #where the pillar is y axis
+    pArea = 0 #so basically we need area because x and y axis is not enough
+
+    #temp is used to make sure a three-point turn
+    temp = False
+
+    t = 0 #number of turns
+
+    t2 = 0 #number of turns, backup (detects lines instead)
     
-    #use edge detection on image
-    imGray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    imgBlur = cv2.GaussianBlur(imGray, (13, 13), 0)
-    ret, imgThresh = cv2.threshold(imGray, 50, 255, cv2.THRESH_BINARY)
-    v = np.median(imgBlur)
-    lowThresh = int(max(0, (1.0 - 0.33) * v))
-    highThresh = int(min(180, (1.0 + 0.33) * v))
-    
-    imgRoi = cv2.cvtColor(imgThresh, cv2.COLOR_GRAY2RGB)
-        
-    
-    ####wall regions of interest
-    cv2.rectangle(imgRoi, (0, 250), (200, 600), (0, 255, 0), 2) #left
-    cv2.rectangle(imgRoi, (600, 250), (800, 600), (0, 255, 0), 2) #right
-    
-    imgThresh = cv2.bitwise_not(imgThresh)
+    tSignal = False #another backup to make sure that pillars didnt make a turn
 
-    leftContours, lefthierarchy = cv2.findContours(imgThresh[250:600, 0:200].copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    rightContours, righthierarchy = cv2.findContours(imgThresh[250: 600, 600: 800].copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    maxLeftArea = 0
-    leftArea = 0
-    for i in leftContours:
-        leftArea = cv2.contourArea(i)
-        if leftArea > 300:
-            x, y, w, h = cv2.boundingRect(i)
-            #cv2.rectangle(imgPerspectiveRGB, (x, y+200), (x+w, y+h+200), (0, 0, 255), 2) #add crop offset 
-            #cv2.rectangle(imgRoi, (x, y+250), (x+w, y+h+250), (0, 255, 0), 2)
-            if leftArea > maxLeftArea:
-                maxLeftArea = leftArea
-    leftArea = maxLeftArea
-    
-    maxRightArea = 0
-    rightArea = 0
-    for i in rightContours:
-        rightArea = cv2.contourArea(i)
-        if rightArea > 300:
-            x, y, w, h = cv2.boundingRect(i)
-            #cv2.rectangle(imgPerspectiveRGB, (x+600, y+200), (x+w+600, y+h+200), (255, 0, 0), 2)#add crop offset 
-            #cv2.rectangle(imgRoi, (x+600, y+250), (x+w+600, y+h+250), (0, 255, 0), 2) 
-            if rightArea > maxRightArea:
-                maxRightArea = rightArea
-    rightArea = maxRightArea
-    
-    print("left area:", leftArea)
-    print("right area:", rightArea)
-    
-    ##check if is in turning state
-    if leftArea < 900 and rightArea < 1500:
-        if turning == True:
-            if prevTurn == "left":
-                print("turning left")
-            elif prevTurn == "right":
-                print("turning right")
-    elif leftArea < 900:
-        if turning == False:
-            print("turning left")
-            turning = True
-            prevTurn = "left"
-    elif rightArea < 1500:
-        if turning == False:
-            print("turning right")
-            turning = True
-            prevTurn = "right"
-    else:
-        if turning == True:
-            prevTurn = "none"
-            print("not turning?")
-        turning = False
-        
-    ###check if is close to wall
-    cv2.rectangle(imgRoi, (200, 260), (600, 260), (0, 255, 0), 2)
-    num = 0
-    for i in range(200, 600):
-        if imgThresh[260][i] == 255:
-            num = num+1
-    print("wall percentage:", num/400.0)
-    if num/400.0 > 0.70:
-        closeToWall = True
-    else:
-        closeToWall = False
-    print("close to wall:", closeToWall)
-    ###look for obstacles
-    img_hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
-    
-    #red obstacle detection
-    lowerBound = np.array([150, 30, 100])
-    upperBound = np.array([180, 255, 255])
-    colourMask = cv2.inRange(img_hsv, lowerBound, upperBound)
-    redContours, redHierarchy = cv2.findContours(colourMask[100: 500, 50:750], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    #green obstacle detection
-    lowerBound = np.array([65, 60, 60])
-    upperBound = np.array([90, 255, 255])
-    colourMask = cv2.inRange(img_hsv, lowerBound, upperBound)
-    greenContours, greenHierarchy = cv2.findContours(colourMask[100: 500, 50:750], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    write(1500) # stop car to begin code
 
-    maxRedArea = 0
-    maxRedIndex = 0
-    for i in redContours:
-        redArea = cv2.contourArea(i)
-        if redArea > maxRedArea and redArea > 300:
-            maxRedArea = redArea
-            maxRedIndex = i
-            xr, yr, wr, hr = cv2.boundingRect(i)
-            cv2.rectangle(imgRoi, (xr+50, yr+100), (xr+wr+50, yr+hr+100), (255, 0, 0), 2)
-
-    maxGreenArea = 0
-    maxGreenIndex = 0
-    for i in greenContours:
-        greenArea = cv2.contourArea(i)
-        if greenArea > maxGreenArea and greenArea > 300:
-            maxGreenArea = greenArea
-            maxGreenIndex = i
-            xg, yg, wg, hg = cv2.boundingRect(i)
-            cv2.rectangle(imgRoi, (xg+50, yg+100), (xg+wg+50, yg+hg+100), (255, 0, 0), 2)
-
-    if maxGreenArea > 250 and maxRedArea > 250:
-        if yg+hg > yr+hr:
-            obstacle = "green"
-        else:
-            obstacle = "red"
-    elif maxGreenArea > 250:
-        obstacle = "green"
-    elif maxRedArea > 250:
-        obstacle = "red"
-    else:
-        obstacle = "none"
-    print("obstacle:", obstacle)
+    time.sleep(8) #wait for code to begin
     
-    if prevObstacle != obstacle:
-        prevError = 0
-    
-    ###based on obstacles, make decisions 
-    #if not turning state, use PID based on obstacles   
-    if not turning:
-        if obstacle == "red":
-            target = 200
-            print("red coor:", xr+wr)
-            error = xr + wr - target
-            print("error:", error)
-            #print("red:", xr+wr)
-            diff = error - prevError
-            proportional = error*kpo
-            print("proportional:", proportional)
-            motorSteering = proportional-(diff*kdo)
-            prevError = error
-            prevObstacle = obstacle
-        elif obstacle == "green":
-            target = 550 #x coordinate of green block
-            error = xg - target
-            print("error:", error)
-            #print("green:", xg)
-            diff = error - prevError
-            proportional = error*kpo
-            print("proportional:", proportional)
-            motorSteering = proportional-(diff*kdo)
-            prevError = error
-            prevObstacle = obstacle
-        elif obstacle == "none":
-            #pid linefollow
-            target = 0
-            print("target: ", target)
-            error = leftArea-rightArea
-            print("error: ", error)
-            proportional=(target - error)*kp
-            diff=error-prevError
-            motorSteering=proportional-(diff*kd)
-            prevError=error
-        
-        print("motor angle:", motorSteering)
-        
-        if(motorSteering > -25 and motorSteering < 25):
-            angle = 2060 + motorSteering
-            angle = int(angle)
-            ser.write((str(angle)+"\n").encode('utf-8'))
-            print("angle: ", angle)
-        elif(motorSteering > 25):
-            angle = 2085
-            ser.write((str(angle)+"\n").encode('utf-8'))
-            print("angle: ", angle)
-        else:
-            angle = 2035
-            ser.write((str(angle)+"\n").encode('utf-8'))
-            print("angle: ", angle)
-    else: #if turning state, hard write angle based on previous calculations
-        if obstacle == "red":
-            if prevTurn == "left":
-                if closeToWall:
-                    angle = 2025
+
+    #start button
+    key2_pin = 16
+
+    GPIO.setmode(GPIO.BOARD)
+    GPIO.setup(key2_pin, GPIO.IN, pull_up_down = GPIO.PUD_UP)
+
+    #write initial values
+    time.sleep(0.5)
+    multi_write([angle, 0.5, 1670, 0.1, speed])
+
+    #let the pain begin
+    while True:
+        #detect things
+        #check if we are done laps
+        if sTime != 0 and not lapsComplete:
+            if time.time() - sTime > s:
+                multi_write([1500, 2.5, 1680, 0.1, 1650])
+                lapsComplete = True
+
+        #reset variables so we can read areas again
+        rightArea, leftArea, areaFront, areaFrontMagenta = 0, 0, 0, 0
+
+        #get image
+        img = picam2.capture_array()
+
+        #funny color stuff (something about color encoding)
+        img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        #read contour of wall and make image grey
+        contours_left = contours(rBlack, ROI1)
+        contours_right = contours(rBlack, ROI2)
+        imgGray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        #define black color in grey image
+        ret, imgThresh = cv2.threshold(imgGray, 55, 255, cv2.THRESH_BINARY_INV)
+
+        #parking using the location based off black in image
+        contours_parking, hierarchy = cv2.findContours(imgThresh[ROI4[1]:ROI4[3], ROI4[0]:ROI4[2]], 
+        cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+        #find biggest contour
+        leftArea = max_contour(contours_left)
+        rightArea = max_contour(contours_right)
+        areaFront = max_contour(contours_parking)
+
+        #find contours for pillars
+        contours_red = contours(rRed, ROI3)
+        contours_green = contours(rGreen, ROI3)
+        contours_blue = contours(rBlue, ROI4)
+        contours_orange = contours(rOrange, ROI4)
+
+        # # number of red and green pillars
+        num_pillars_g = 0
+        num_pillars_r = 0
+
+        #distance of the pillar
+        pDist = 100000
+        pArea = 0
+
+
+        arr1 = [contours_green, contours_red]
+        targets = [greenTarget, redTarget]
+
+        ignore = False
+
+        #iterate through both lists of contours
+        for i in range(len(arr1)): 
+            for x in range(len(arr1[i])):
+                cnt = arr1[i][x]
+                area = cv2.contourArea(cnt)
+
+                if area > 100:
+
+                    #get width, height, and x and y coordinates
+                    approx=cv2.approxPolyDP(cnt, 0.01*cv2.arcLength(cnt,True),True)
+                    x,y,w,h=cv2.boundingRect(approx)
+
+                    #scale to image
+                    x += ROI3[0] + w // 2 
+                    y += ROI3[1] + h
+
+                    #if the pillar is close enough add it to the number of pillars
+                    temp_dist = round(math.dist([x, y], [320, 480]), 0)
+                    if 160 < temp_dist < 380 : #395
+                        if i == 0: 
+                            num_pillars_g += 1
+                        else: 
+                            num_pillars_r += 1
+
+                    #if too close, go back
+                    if ((area > 6500 and ((x <= 420 and i == 0) or (x >= 220 and i == 1)))) and t < 13:
+
+                        multi_write([straightConst, 0.1, 1500, 0.1, reverseSpeed, 0.5, speed])
+
+                        if s != 0:
+                            s += 1.5
+
+                        ignore = True
+                        if reverse == "turning" and turnDir == "right":
+                            reverse = "done"
+                            turnDir = "left"
+                            t += 1
+
+                    #deselects current pillar if its too close
+                    if y > ROI3[3] - endConst or (temp_dist > 370 and t2 != 7) or (t2 == 7 and temp_dist > 380):
+                        continue
+
+                    #other cases i dont even know atp
+                    if leftArea > 13000 or rightArea > 13000:
+                        continue
+                    if debug: cv2.rectangle(img,(x - w // 2, y - h),(x+ w // 2,y),(0,0,255),2)
+
+                    if temp_dist < pDist:
+                        pArea = area
+                        contY = y
+                        contX = x
+                        cTarget = targets[i]
+                        pDist = temp_dist
+
+
+        #check if we are turning wide or short
+        if (num_pillars_r >= 2 or num_pillars_g >= 2):
+
+
+            endConst = 60
+
+            cKp = 0.2 
+            cKd = 0.2 
+            cy = 0.05 
+
+        #any other combination of number of pillars
+        else:     
+
+            endConst = 30
+
+            cKp = 0.25
+            cKd = 0.25 
+            cy = 0.08 
+
+        arr2 = [contours_orange, contours_blue]
+        directions = ["right", "left"]
+
+        #go through contours
+        for i in range(len(arr2)): 
+            for x in range(len(arr2[i])):
+
+                cnt = arr2[i][x]
+                area = cv2.contourArea(cnt)
+
+                if area > 100:
+
+                    #set the turn direction
+                    if turnDir == "none":
+                        turnDir = directions[i]
+
+                    if turnDir == directions[i] and not parkingR and not parkingL:
+
+                        if ignore == False and prevIgnore == True:
+                            t -= 1
+                            ignore = False
+                        t2 = t
+
+                        #check if we can 3 point turn
+                        if t2 == 7:
+                            ROI3 = [redTarget - 40, 90, greenTarget + 40, 335]
+                            ROIs = [ROI1, ROI2, ROI3, ROI4]
+
+                        if i == 0:
+                            rTurn = True
+                        else:
+                            lTurn = True
+
+        #reset numbers
+        maxAreaL = 0 
+        leftY = 0 
+        maxAreaR = 0 
+        rightY = 0 
+        centerY = 0 
+        # check if parking spot contours directly in front of car
+        if t == 8 or tempParking:
+
+            #find largest magenta contour
+            contours_magenta_c = contours(rMagenta, ROI4)
+            areaFrontMagenta = max_contour(contours_magenta_c)
+
+            #turn left if wrong way
+            if areaFrontMagenta > 500 and t == 8:
+                angle = sharpLeft
+
+        if tempParking:
+
+            #things didnt work so we just gotta find anything we can
+            contours_magenta_l = contours(rMagenta, ROI1)
+            contours_magenta_r = contours(rMagenta, ROI2)
+
+            info = [[0, 0, ROI1], [0, 0, ROI2], [0, 0, ROI4]]
+            conts = [contours_magenta_l, contours_magenta_r, contours_magenta_c]
+
+            #finds the largest magenta contour in the left, right, and centre + coordinates
+            for i in range(len(conts)): 
+                for x in range(len(conts[i])):
+                    cnt = conts[i][x]
+                    area = cv2.contourArea(cnt)
+
+                    if area > 100:
+                        approx=cv2.approxPolyDP(cnt, 0.01*cv2.arcLength(cnt,True),True)
+                        x,y,w,h=cv2.boundingRect(approx)
+
+                        x += info[i][2][0]
+                        y += info[i][2][1] + h
+
+                        #replace largest contour 
+                        if area > info[i][0]:
+                            info[i][0] = area
+                            info[i][1] = y
+
+            maxAreaL = info[0][0] 
+            leftY = info[0][1]
+            maxAreaR = info[1][0]
+            rightY = info[1][1]
+            centerY = info[2][1]
+
+            #conditions for parking left
+            if leftY >= 220 and maxAreaL > 100 and t2 >= 12:
+                if not parkingL and not parkingR:
+                    write(1640)
+                    parkingL = True
+
+                #readajust region of interest for parking
+                ROI4 = [230, 250, 370, 300]
+                ROIs = [ROI1, ROI2, ROI3, ROI4]
+
+            #conditions for initiating parking on the right side
+            if rightY >= 240 and maxAreaR > 100 and t2 >= 12:
+                if not parkingL and not parkingR:
+
+                    parkingR = True
+                    write(1640)
+
+                #readajust region of interest for parking
+                ROI4 = [250, 250, 390, 300]
+                ROIs = [ROI1, ROI2, ROI3, ROI4]
+
+            if parkingR:
+
+                #readajust by backing up if the parking lot is in front
+                if centerY > 290:
+                    multi_write([1500, 0.1, 1352, sharpLeft, 0.5, 1500])
+                #turn right into parking lot
                 else:
-                    angle = 2060
-            elif prevTurn == "right":
-                angle = 2095
-                print("red, right turn")
-        elif obstacle == "green":
-            if prevTurn == "left":
-                angle = 2025
-            elif prevTurn == "right":
-                angle = 2075
-                if closeToWall:
-                    angle = 2095
-                    ("green, right turn")
-                else:
-                    angle = 2060
-                    ("green, not yet") 
-        else:
-            if prevTurn == "left":
-                angle = 2030
-            elif prevTurn == "right":
-                angle = 2090
-    
-    ser.write((str(angle)+"\n").encode('utf-8'))
-    print("angle: ", angle)
-            
-    speed = 1370
-    ser.write((str(speed) + "\n").encode('utf-8'))
-    print("speed: ", speed)
-            
-            
-    #counting laps code
-        
-    lowerBlue = np.array([95, 30, 140])
-    upperBlue = np.array([130, 255, 255])
-    blueMask = cv2.inRange(img_hsv, lowerBlue, upperBlue)
+                    multi_write([1640, sharpRight])
 
-    blueContours, blueHierarchy = cv2.findContours(blueMask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    maxBlueArea = 0
-    for i in blueContours:
-        blueArea = cv2.contourArea(i)
-        x, y, w, h = cv2.boundingRect(i)
-        if blueArea > 3000:
-            cv2.rectangle(imgRoi, (x, y), (x+w, y+h), (255, 0, 0), 2)
-        if blueArea > maxBlueArea:
-            maxBlueArea = blueArea
-            
-    if maxBlueArea > 3000:
-        currBlue = True
-        turning = True
-    else: 
-        currBlue = False
-    #print("prev blue:", prevBlue)
-    #print("curr blue:", currBlue)
-    #print("max blue area:", maxBlueArea)
-    if not prevBlue == currBlue:
-        blueCount = blueCount + 1
-    print("count of blue: ", blueCount)
-    prevBlue = currBlue
-    
-    
-    ### show all regions of interest / contours
-    #cv2.imshow("colours!", imgRoi)
-    
-    if blueCount == 14:
-        if obstacle == "red" or obstacle == "green":
-            turnObstacle = obstacle
-    
-    if blueCount == 16 and turnObstacle == "red":
-        print("three point turn here")
+            elif parkingL:
+
+                #if car is too for left turn back to the right
+                if rightArea > 8000 and maxAreaR > 2000:
+                    multi_write([1640, sharpRight, 1])
+                elif centerY > 290 and areaFront < 3000:
+                    multi_write([1500, 0.1, 1352, sharpRight, 0.5, 1500])
+                else:
+                    multi_write([1640, sharpLeft])
+
+            #check if we are in front of a wall and about to crash
+            if areaFront > 3500:
+                multi_write([straightConst, 0.2, 1640, 1])
+                stop_car()
+                break
+            #if q is pressed break out of main loop and stop the car
+            if cv2.waitKey(1)==ord('q'):
+                stop_car() 
+                break
+
+            #display regions of interest
+            display_roi((255, 204, 0))
+
+            #display image
+            cv2.imshow("finalColor", img)
+
+            ##gMask = cv2.inRange(img_hsv, np.array(rGreen[0]), np.array(rGreen[1]))
+            #cv2.imshow("Green Mask", gMask)
+
+            #rMask = cv2.inRange(img_hsv, np.array(rRed[0]), np.array(rRed[1]))
+            #cv2.imshow("Red Mask", rMask)
+
+            pColour = "r" if lastTarget == redTarget else "g"
+            if cTarget == redTarget: 
+                cpColour = "r"
+            elif cTarget == greenTarget:
+                cpColour = "g"
+            else:
+                cpColour = "n"
+
+            if rTurn:
+                turn_status = "r"
+            elif lTurn:
+                turn_status = "l"
+            else:
+                turn_status = "n"
+
+        # reset variables
+        prevAngle = angle
+        tSignal = False
         
-    if blueCount == 23:
-        lastTurnTime = time.time()
-        
-    if blueCount == 24:
-        #delay( to be changed)
-        #newTurnTime = time.time()
-        #if newTurnTime - lastTurnTime > :
-        speed = 1500
-        ser.write((str(speed) + "\n").encode('utf-8'))
-        print("speed: ", speed)
-        
-        angle = 2060
-        ser.write((str(angle) + "\n").encode('utf-8'))
-        print("angle: ", angle)
-        break
-    
-    #frame rate ded code
-    newFrameTime = time.time()
-    fps = 1.0/(newFrameTime-prevFrameTime)
-    prevFrameTime = newFrameTime
-    fps = int(fps)
-    print("fps: ", fps)
-    if fps == 0:
-        fpsCount = fpsCount + 1
-    if fpsCount == 10:
-        speed = 1500
-        ser.write((str(speed) + "\n").encode('utf-8'))
-        print("speed: ", speed)
-        
-        angle = 2060
-        ser.write((str(angle) + "\n").encode('utf-8'))
-        print("angle: ", angle)
-        break
-    
-    
-    #stop the program code
-    """
-    if cv2.waitKey(1)==ord('q'):#wait until key ‘q’ pressed
-        speed = 1500
-        ser.write((str(speed) + "\n").encode('utf-8'))
-        print("speed: ", speed)
-        
-        angle = 2060
-        ser.write((str(angle) + "\n").encode('utf-8'))
-        print("angle: ", angle)
-        break
-    """
-    print(" ")
-        
+        prevError = error
+        contY = 0
+        contX = 0
+        cTarget = 0
+        pArea = 0
+        prevIgnore = ignore
+
+        #safety if the turn counter kills itself
+        if t == 13 and not tempParking:
+            redTarget, greenTarget = (greenTarget, greenTarget) if turnDir == "right" else (redTarget, redTarget)
+            tempParking = True
+
+        time.sleep(0.1)
+
+picam2.stop()
 cv2.destroyAllWindows()
